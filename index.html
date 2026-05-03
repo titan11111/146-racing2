@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>星かけの勇者 JS RPG</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      display: flex;
+      justify-content: center;
+      padding-top: 30px;
+    }
+
+    #game {
+      width: 720px;
+      background: #1b1b2f;
+      border: 4px solid white;
+      padding: 20px;
+      box-shadow: 0 0 20px #000;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      color: #ffd966;
+    }
+
+    #screen {
+      background: #000;
+      border: 3px solid white;
+      min-height: 260px;
+      padding: 18px;
+      font-size: 18px;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    #status {
+      margin-top: 15px;
+      padding: 12px;
+      border: 2px solid white;
+      background: #222;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      font-size: 16px;
+    }
+
+    #commands {
+      margin-top: 15px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      background: #333366;
+      color: white;
+      border: 2px solid white;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #5555aa;
+    }
+
+    button:disabled {
+      background: #555;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+
+    .danger {
+      color: #ff7777;
+    }
+
+    .good {
+      color: #88ff88;
+    }
+
+    .gold {
+      color: #ffd966;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <h1>星かけの勇者</h1>
+
+    <div id="screen"></div>
+
+    <div id="status"></div>
+
+    <div id="commands"></div>
+  </div>
+
+  <script>
+    const screen = document.getElementById("screen");
+    const statusBox = document.getElementById("status");
+    const commands = document.getElementById("commands");
+
+    const player = {
+      name: "ゆうしゃ",
+      level: 1,
+      hp: 24,
+      maxHp: 24,
+      mp: 6,
+      maxMp: 6,
+      atk: 7,
+      def: 3,
+      exp: 0,
+      nextExp: 12,
+      gold: 30,
+      herbs: 2,
+      weapon: "木の剣",
+      armor: "旅人の服"
+    };
+
+    let gameState = "village";
+    let enemy = null;
+    let bossDefeated = false;
+
+    const enemies = [
+      {
+        name: "ぷるぷるゼリー",
+        hp: 16,
+        atk: 5,
+        def: 1,
+        exp: 5,
+        gold: 7
+      },
+      {
+        name: "こもりコウモリ",
+        hp: 18,
+        atk: 6,
+        def: 2,
+        exp: 7,
+        gold: 10
+      },
+      {
+        name: "まよいキノコ",
+        hp: 22,
+        atk: 7,
+        def: 2,
+        exp: 9,
+        gold: 12
+      }
+    ];
+
+    const bossTemplate = {
+      name: "星喰いオーガ",
+      hp: 55,
+      atk: 10,
+      def: 4,
+      exp: 30,
+      gold: 60,
+      boss: true
+    };
+
+    function updateStatus() {
+      statusBox.innerHTML = `
+        <div>名前：${player.name}</div>
+        <div>Lv：${player.level}</div>
+        <div>HP：${player.hp} / ${player.maxHp}</div>
+        <div>MP：${player.mp} / ${player.maxMp}</div>
+        <div>攻撃：${player.atk}</div>
+        <div>守備：${player.def}</div>
+        <div>経験値：${player.exp} / ${player.nextExp}</div>
+        <div>所持金：${player.gold}G</div>
+        <div>薬草：${player.herbs}個</div>
+        <div>装備：${player.weapon} / ${player.armor}</div>
+      `;
+    }
+
+    function setText(text) {
+      screen.textContent = text;
+      updateStatus();
+    }
+
+    function setCommands(list) {
+      commands.innerHTML = "";
+      list.forEach(cmd => {
+        const btn = document.createElement("button");
+        btn.textContent = cmd.label;
+        btn.onclick = cmd.action;
+        if (cmd.disabled) btn.disabled = true;
+        commands.appendChild(btn);
+      });
+    }
+
+    function rand(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function village() {
+      gameState = "village";
+      setText(
+`ここは小さな村「ルルカ」。
+
+村の守り石である「星のかけら」が、
+北の洞窟にすむ魔物に奪われてしまった。
+
+村人たちは不安そうに空を見上げている。
+
+村長：
+「若き旅人よ……。
+どうか星のかけらを取り戻してくれ！」`
+      );
+
+      setCommands([
+        { label: "北の草原へ行く", action: field },
+        { label: "宿屋に泊まる 10G", action: inn },
+        { label: "道具屋", action: shop },
+        { label: "洞窟へ向かう", action: cave },
+        { label: "セーブ風に記録", action: saveGame },
+        { label: "記録を読む", action: loadGame }
+      ]);
+    }
+
+    function inn() {
+      if (player.gold < 10) {
+        setText("宿屋のおばさん：\n「お金が足りないみたいだねぇ……。」");
+      } else {
+        player.gold -= 10;
+        player.hp = player.maxHp;
+        player.mp = player.maxMp;
+        setText("一晩ぐっすり眠った。\nHPとMPが全回復した！");
+      }
+
+      setCommands([
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function shop() {
+      setText(
+`道具屋：
+「いらっしゃい！
+薬草は1個 8G だよ。」
+
+現在の所持金：${player.gold}G`
+      );
+
+      setCommands([
+        {
+          label: "薬草を買う 8G",
+          action: () => {
+            if (player.gold >= 8) {
+              player.gold -= 8;
+              player.herbs++;
+              setText(`薬草を1個買った！\n薬草：${player.herbs}個`);
+            } else {
+              setText("道具屋：\n「お金が足りないよ！」");
+            }
+            setCommands([
+              { label: "もう一度買う", action: shop },
+              { label: "村へ戻る", action: village }
+            ]);
+          }
+        },
+        {
+          label: "銅の剣を買う 40G",
+          action: buySword
+        },
+        {
+          label: "皮のよろいを買う 35G",
+          action: buyArmor
+        },
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function buySword() {
+      if (player.weapon === "銅の剣") {
+        setText("すでに銅の剣を持っている。");
+      } else if (player.gold < 40) {
+        setText("お金が足りない！");
+      } else {
+        player.gold -= 40;
+        player.weapon = "銅の剣";
+        player.atk += 4;
+        setText("銅の剣を装備した！\n攻撃力が上がった！");
+      }
+
+      setCommands([
+        { label: "道具屋に戻る", action: shop },
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function buyArmor() {
+      if (player.armor === "皮のよろい") {
+        setText("すでに皮のよろいを持っている。");
+      } else if (player.gold < 35) {
+        setText("お金が足りない！");
+      } else {
+        player.gold -= 35;
+        player.armor = "皮のよろい";
+        player.def += 3;
+        setText("皮のよろいを装備した！\n守備力が上がった！");
+      }
+
+      setCommands([
+        { label: "道具屋に戻る", action: shop },
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function field() {
+      gameState = "field";
+      setText(
+`北の草原に出た。
+
+風がざわめき、遠くで魔物の声が聞こえる。
+
+どうする？`
+      );
+
+      setCommands([
+        { label: "歩き回る", action: randomEncounter },
+        { label: "薬草を使う", action: useHerbOutBattle },
+        { label: "村へ戻る", action: village },
+        { label: "洞窟へ向かう", action: cave }
+      ]);
+    }
+
+    function cave() {
+      if (player.level < 3 && !bossDefeated) {
+        setText(
+`北の洞窟の入口にたどり着いた。
+
+中から強い魔力を感じる……。
+
+今のレベルでは少し危険かもしれない。
+それでも進む？`
+        );
+
+        setCommands([
+          { label: "それでも進む", action: bossBattle },
+          { label: "草原で鍛える", action: field },
+          { label: "村へ戻る", action: village }
+        ]);
+      } else if (bossDefeated) {
+        ending();
+      } else {
+        bossBattle();
+      }
+    }
+
+    function randomEncounter() {
+      const base = enemies[rand(0, enemies.length - 1)];
+      enemy = { ...base };
+      battleStart();
+    }
+
+    function bossBattle() {
+      enemy = { ...bossTemplate };
+      battleStart();
+    }
+
+    function battleStart() {
+      gameState = "battle";
+      setText(
+`魔物が現れた！
+
+${enemy.name} が立ちはだかった！
+
+敵HP：${enemy.hp}`
+      );
+
+      battleCommands();
+    }
+
+    function battleCommands() {
+      setCommands([
+        { label: "攻撃", action: attack },
+        { label: "ちいさなホイミ MP3", action: healSpell },
+        { label: "薬草を使う", action: useHerbBattle },
+        { label: "逃げる", action: runAway, disabled: enemy.boss }
+      ]);
+    }
+
+    function attack() {
+      const damage = Math.max(1, player.atk + rand(-2, 3) - enemy.def);
+      enemy.hp -= damage;
+
+      let text = `${player.name}の攻撃！\n${enemy.name}に ${damage} のダメージ！\n`;
+
+      if (enemy.hp <= 0) {
+        winBattle(text);
+        return;
+      }
+
+      enemyTurn(text);
+    }
+
+    function healSpell() {
+      if (player.mp < 3) {
+        setText("MPが足りない！");
+        battleCommands();
+        return;
+      }
+
+      player.mp -= 3;
+      const heal = rand(14, 20);
+      player.hp = Math.min(player.maxHp, player.hp + heal);
+
+      let text = `${player.name}は ちいさなホイミ を唱えた！\nHPが ${heal} 回復した！\n`;
+
+      enemyTurn(text);
+    }
+
+    function useHerbBattle() {
+      if (player.herbs <= 0) {
+        setText("薬草を持っていない！");
+        battleCommands();
+        return;
+      }
+
+      player.herbs--;
+      const heal = rand(18, 24);
+      player.hp = Math.min(player.maxHp, player.hp + heal);
+
+      let text = `薬草を使った！\nHPが ${heal} 回復した！\n`;
+
+      enemyTurn(text);
+    }
+
+    function useHerbOutBattle() {
+      if (player.herbs <= 0) {
+        setText("薬草を持っていない！");
+      } else if (player.hp === player.maxHp) {
+        setText("HPは満タンだ。");
+      } else {
+        player.herbs--;
+        const heal = rand(18, 24);
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        setText(`薬草を使った！\nHPが ${heal} 回復した！`);
+      }
+
+      setCommands([
+        { label: "草原へ戻る", action: field },
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function enemyTurn(text) {
+      const damage = Math.max(1, enemy.atk + rand(-2, 2) - player.def);
+      player.hp -= damage;
+
+      text += `\n${enemy.name}の攻撃！\n${player.name}は ${damage} のダメージを受けた！`;
+
+      if (player.hp <= 0) {
+        player.hp = 0;
+        gameOver(text);
+        return;
+      }
+
+      text += `\n\n敵HP：${Math.max(0, enemy.hp)}`;
+      setText(text);
+      battleCommands();
+    }
+
+    function runAway() {
+      if (Math.random() < 0.6) {
+        setText("うまく逃げ切った！");
+        setCommands([
+          { label: "草原へ戻る", action: field },
+          { label: "村へ戻る", action: village }
+        ]);
+      } else {
+        let text = "しかし回り込まれてしまった！\n";
+        enemyTurn(text);
+      }
+    }
+
+    function winBattle(text) {
+      text += `\n${enemy.name}を倒した！`;
+      text += `\n経験値 ${enemy.exp} を手に入れた！`;
+      text += `\n${enemy.gold}G を手に入れた！`;
+
+      player.exp += enemy.exp;
+      player.gold += enemy.gold;
+
+      if (enemy.boss) {
+        bossDefeated = true;
+        text += `\n\n${enemy.name}は光となって消えた……。`;
+        text += `\nその場に「星のかけら」が落ちている！`;
+      }
+
+      if (player.exp >= player.nextExp) {
+        levelUp();
+        text += `\n\nレベルが上がった！`;
+        text += `\nLv ${player.level} になった！`;
+        text += `\n最大HP、最大MP、攻撃力、守備力が上がった！`;
+      }
+
+      setText(text);
+
+      if (enemy.boss) {
+        setCommands([
+          { label: "村へ帰る", action: ending }
+        ]);
+      } else {
+        setCommands([
+          { label: "さらに歩く", action: randomEncounter },
+          { label: "草原へ戻る", action: field },
+          { label: "村へ戻る", action: village }
+        ]);
+      }
+    }
+
+    function levelUp() {
+      player.level++;
+      player.exp -= player.nextExp;
+      player.nextExp = Math.floor(player.nextExp * 1.7);
+      player.maxHp += rand(6, 9);
+      player.maxMp += rand(2, 4);
+      player.atk += rand(2, 4);
+      player.def += rand(1, 3);
+      player.hp = player.maxHp;
+      player.mp = player.maxMp;
+    }
+
+    function gameOver(text) {
+      setText(
+`${text}
+
+${player.name}は倒れてしまった……。
+
+気がつくと、ルルカ村の宿屋のベッドにいた。
+所持金が半分になった。`
+      );
+
+      player.gold = Math.floor(player.gold / 2);
+      player.hp = Math.max(1, Math.floor(player.maxHp / 2));
+      player.mp = Math.floor(player.maxMp / 2);
+
+      setCommands([
+        { label: "村から再開する", action: village }
+      ]);
+    }
+
+    function ending() {
+      setText(
+`あなたは「星のかけら」を村へ持ち帰った。
+
+村長：
+「おお……！
+これで村の夜空に、ふたたび星が戻る！」
+
+その夜、ルルカ村の空には無数の星が輝いた。
+
+人々はあなたを称え、
+小さな宴を開いた。
+
+こうして、若き勇者の最初の冒険は幕を閉じた。
+
+しかし、遠い山の向こうでは、
+さらなる闇が目覚めようとしていた……。
+
+　　　　　THE END`
+      );
+
+      setCommands([
+        { label: "最初から遊ぶ", action: resetGame },
+        { label: "クリア後も村へ戻る", action: village }
+      ]);
+    }
+
+    function saveGame() {
+      const data = {
+        player,
+        bossDefeated
+      };
+
+      localStorage.setItem("hoshikake_rpg_save", JSON.stringify(data));
+
+      setText("冒険の記録を保存した！");
+      setCommands([
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function loadGame() {
+      const raw = localStorage.getItem("hoshikake_rpg_save");
+
+      if (!raw) {
+        setText("保存された冒険の記録はなかった。");
+      } else {
+        const data = JSON.parse(raw);
+        Object.assign(player, data.player);
+        bossDefeated = data.bossDefeated;
+        setText("冒険の記録を読み込んだ！");
+      }
+
+      setCommands([
+        { label: "村へ戻る", action: village }
+      ]);
+    }
+
+    function resetGame() {
+      localStorage.removeItem("hoshikake_rpg_save");
+      location.reload();
+    }
+
+    village();
+  </script>
+</body>
+</html>
