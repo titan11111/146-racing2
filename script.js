@@ -26,9 +26,11 @@ class InputController {
       if (e.key === " " || e.key.toLowerCase() === "x") this.boost = true;
     });
     document.addEventListener("keyup", (e) => {
-      if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") this.accel = false;
-      if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") this.brake = false;
-      if (e.key === " " || e.key.toLowerCase() === "x") this.boost = false;
+      if (e.key === "ArrowLeft"  || e.key.toLowerCase() === "a") this.left  = false;
+      if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") this.right = false;
+      if (e.key === "ArrowUp"    || e.key.toLowerCase() === "w") this.accel = false;
+      if (e.key === "ArrowDown"  || e.key.toLowerCase() === "s") this.brake = false;
+      if (e.key === " "          || e.key.toLowerCase() === "x") this.boost = false;
     });
 
     this.canvas.addEventListener("pointerdown", (e) => {
@@ -68,9 +70,11 @@ class InputController {
       if (this.left && !this.right) {
         player.targetLane -= 1;
         this.steerCooldown = 0.11;
+        this.left = false;  // 消費して次の入力まで待つ（スワイプ対策）
       } else if (this.right && !this.left) {
         player.targetLane += 1;
         this.steerCooldown = 0.11;
+        this.right = false; // 消費して次の入力まで待つ（スワイプ対策）
       }
     }
     player.targetLane = clamp(player.targetLane, 0, laneCount - 1);

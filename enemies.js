@@ -38,6 +38,7 @@ export function updateEnemies(state, dt, player) {
       enemy.xOffset += Math.sin(enemy.zigzagTimer * 8 + target) * 40 * dt;
       if (enemy.zigzagTimer > 0.8) {
         enemy.zigzagTimer = 0;
+        enemy.xOffset = 0; // リセット：累積で画面外に流れるのを防ぐ
         enemy.lane = clamp(enemy.lane + (Math.random() > 0.5 ? 1 : -1), 0, state.laneCount - 1);
       }
     }
