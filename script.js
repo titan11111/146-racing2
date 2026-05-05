@@ -462,6 +462,11 @@ class RaceGame {
     this.input.consumeLaneMove(this.player, this.state.laneCount, effectiveDt);
     this.handleLaneClosure(effectiveDt);
     this.player.updatePosition(this.laneToX.bind(this), this.state.stage.slippery ? 0.06 : 0.15, effectiveDt);
+    // カーブ遠心力：レーン制を維持しつつ renderX を外側に押す演出
+    // dt を掛けてフレームレート非依存に。秒速 ~20px（最大カーブ+最大速度時）
+    const _speedRatio = this.state.currentSpeed / (this.state.stage.baseSpeed * 1.6);
+    const _curve = this.state.activeTile?.curve ?? 0;
+    this.player.renderX += _curve * _speedRatio * effectiveDt * 20;
     this.updateVisualEffects(effectiveDt);
     this.spawnAndUpdateEnemies(effectiveDt);
     this.checkOvertakes();
